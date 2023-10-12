@@ -1,0 +1,235 @@
+<!--
+ * @author 김응경
+ * @date 2023. 7. 26.
+ * @description 거래내역 조회 화면
+-->
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>BeBig</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0, width=device-width, target-densitydpi=medium-dpi" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="stylesheet" type="text/css" href="css/common.css" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="/js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="/js/html5shiv.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	//조회조건 오늘날짜 세팅
+	fnSetToday();
+	
+	$("#searchButton").click(function () {
+		var formData = $("#historyForm").serialize();
+		console.log("foromData = " + formData);
+		$.ajax({
+			type: "POST",
+			url: "/requestAccountHistory",
+			data: formData,
+			success: function (msg) {
+				console.log("서버응답:", msg.Data);
+				var resultHistory ="";
+				
+				if (msg.Code == "0000") {
+					for(i in msg.Data){
+						var tranDate = msg.Data[i].tran_date;
+						var tranTime = msg.Data[i].tran_time;
+						var replaceTranDate = tranDate.substring(0,4) + "-" + tranDate.substring(4,6) + "-" + tranDate.substring(6,8);
+						var replaceTranTime = tranTime.substring(0,2) + ":" + tranTime.substring(2,4);
+						var replaceTranAmt = parseInt(msg.Data[i].tran_amt).toLocaleString();
+						var replaceAfterBalanceAmt = parseInt(msg.Data[i].after_balance_amt).toLocaleString();
+						
+						resultHistory += "<tr>";
+						resultHistory += "<td>" + replaceTranDate +" "+ replaceTranTime + "</td>";
+						resultHistory += "<td>" + msg.Data[i].inout_type + "</td>";
+						resultHistory += "<td>" + replaceTranAmt + "</td>";
+						resultHistory += "<td>" + replaceAfterBalanceAmt + "</td>";
+						resultHistory += "<td>" + msg.Data[i].branch_name + "</td>";
+						resultHistory += "</tr>";
+					}
+					$("#accountHistory").append(resultHistory);
+				} else {
+					alert(msg.Message);
+				}
+			},
+			error: function (xhr, status, error) {
+				console.error("오류:", error);
+				
+				alert("처리 중, 오류가 발생하였습니다. 담당자에게 문의하시기 바랍니다.");
+			}
+		});
+	});
+});
+
+function fnSetToday() {
+	var today = new Date();
+	var dd = String(today.getDate()).padStart(2, "0");
+	var mm = String(today.getMonth() + 1).padStart(2, "0");
+	var yyyy = today.getFullYear();
+	
+	today = yyyy + "-" + mm + "-" + dd;
+	
+	$("#startDate").val(today);
+	$("#endDate").val(today);
+}
+</script>
+</head>
+<body>
+	<div id="wrap">
+		<div id="skipNav">
+			<a href="#main">본문 바로가기</a>
+		</div>
+		<div th:replace="fragments/header :: header"></div>
+		<div class="main" id="main">
+			<div class="container">
+				<section class="section h-100">
+					<div class="main-tit">
+						<h2>거래내역 조회</h2>
+						<div>
+							<button type="button" class="btn btn-primary">
+								<a href="/account" class="fw-bold" style="color: #FFFFFF; text-decoration: none;"> 목록으로 </a>
+							</button>
+						</div>
+					</div>
+					<div class="table-style">
+						<table>
+							<caption>거래 내역 조회하기 위한 통장 정보</caption>
+							<colgroup>
+								<col style="width: 150px;">
+								<col style="width: calc(( 100% - 450px)/3);">
+								<col style="width: 150px;">
+								<col style="width: calc(( 100% - 450px)/3);">
+								<col style="width: 150px;">
+								<col style="width: calc(( 100% - 450px)/3);">
+							</colgroup>
+							<tbody>
+								<tr>
+									<th>은행명</th>
+									<td class="align-left">
+										<p th:text="${params.bankName != null ? params.bankName : ' '}"></p>
+									</td>
+									<th>계좌번호</th>
+									<td class="align-left">
+										<p th:if="${params.accountNumMasked != null}">
+											<span th:text="${params.accountNumMasked}"></span>
+										</p>
+									</td>
+									<th>현재 잔액(원)</th>
+									<td class="align-right">
+										<!-- <b><p class="text-orange" th:text="${#numbers.formatInteger(params.balanceAmt, 1, 'COMMA')}"></p></b> -->
+										<b><p class="text-orange" th:text="${params.balanceAmt}"></p></b>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<form id="historyForm">
+						<input type="hidden" name="finUseNum" th:value="${params.finUseNum}">
+						<div class="table-style">
+							<table>
+								<caption>거래 정보를 보기위한 정렬 표</caption>
+								<colgroup>
+									<col style="width: 150px;">
+									<col style="width: calc(100% - 150px);">
+								</colgroup>
+								<tbody>
+									<tr>
+										<th>거래 일자</th>
+										<td>
+											<div class="form-box">
+												<div class="form-data-box">
+													<div class="form-data">
+														<input type="date" id="startDate" name="startDate" class="form-control" style="display: inline-block; width: 200px;">
+													</div>
+													<span>~</span>
+													<div class="form-data">
+														<input type="date" id="endDate" name="endDate" class="form-control" style="display: inline-block; width: 200px;">
+													</div>
+												</div>
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<th>거래 유형</th>
+										<td>
+											<div class="form-box">
+												<label class="form-radio">
+													<input type="radio" name="queryType" id="queryTypeA" value="A" class="form-check-input" checked="checked">
+													<span class="form-check-label">전체</span>
+												</label>
+												<label class="form-radio">
+													<input type="radio" name="queryType" id="queryTypeI" value="I" class="form-check-input">
+													<span class="form-check-label">입금 </span>
+												</label>
+												<label class="form-radio">
+													<input type="radio" name="queryType" id="queryTypeO" value="O" class="form-check-input">
+													<span class="form-check-label">출금 </span>
+												</label>
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<th>정렬 순서</th>
+										<td>
+											<div class="form-box">
+												<label class="form-radio">
+													<input type="radio" name="sortOrder" id="sortOrderD" value="D" class="form-check-input" checked="checked">
+													<span class="form-check-label">최신순</span>
+												</label>
+												<label class="form-radio">
+													<input type="radio" name="sortOrder" id="sortOrderA" value="A" class="form-check-input">
+													<span class="form-check-label">과거순</span>
+												</label>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div class="btn-box">
+							<button type="button" id="searchButton" class="btn btn-lg btn-primary">조회</button>
+						</div>
+ 					</form>
+					<div class="table-style scroll">
+						<div class="scroll-thead">
+							<table>
+								<caption>거래내역 제목을 볼 수 있는 표</caption>
+								<colgroup>
+									<col style="width: 254px;">
+									<col style="width: 215px;">
+									<col style="width: 212px;">
+									<col style="width: 256px;">
+									<col style="width: 230px;">
+								</colgroup>
+								<thead>
+									<th>거래일시</th>
+									<th>거래 유형</th>
+									<th>거래 금액(원)</th>
+									<th>거래 후 잔액(원)</th>
+									<th>거래점 명</th>
+								</thead>
+							</table>
+						</div>
+						<div class="scroll-tbody">
+							<table>
+								<caption>거래내역을 내용을 볼수 있는 표</caption>
+								<colgroup>
+									<col style="width: 254px;">
+									<col style="width: 215px;">
+									<col style="width: 212px;">
+									<col style="width: 256px;">
+									<col style="width: 230px;">
+								</colgroup>
+								<tbody id = "accountHistory">
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</section>
+			</div>
+		</div>
+		<div th:replace="fragments/footer :: footer"></div>
+	</div>
+</body>
+</html>

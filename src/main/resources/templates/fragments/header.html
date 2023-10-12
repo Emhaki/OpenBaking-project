@@ -1,0 +1,25 @@
+<!--
+ * @author 김응경
+ * @date 2023. 7. 26.
+ * @description 헤더 부분
+-->
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--headerFragment 선언-->
+<header class="header">
+		<div class="container">
+			<div class="header-inner">
+				<a href="/account">
+					<h1>
+						<span class="hidden">Company</span>
+					</h1>
+				</a>
+				<div class="header-info">
+					<p th:text="${session.userLoginId}" style="cursor: pointer;"></p>
+					<form action="/logout" method="post">
+						<button type="submit" class="btn">로그아웃</button>
+					</form>		
+				</div>
+			</div>
+		</div>
+</header>
+</html>

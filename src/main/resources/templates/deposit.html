@@ -1,0 +1,217 @@
+<!--
+ * @author 이명학
+ * @date 2023. 7. 26.
+ * @description 입금이체 화면
+-->
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="description" content="" />
+<meta name="author" content="" />
+<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0, width=device-width, target-densitydpi=medium-dpi"/>
+<meta name="format-detection" content="telephone=no" />
+<title>BeBig</title>
+<link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet"/>
+<link href="css/styles.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="css/common.css" />
+<script src="https://use.fontawesome.com/releases/v6.1.0/js/all.js" crossorigin="anonymous"></script>
+<script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="js/html5shiv.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script src="js/scripts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest" crossorigin="anonymous"></script>
+<script src="js/datatables-simple-demo.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	$("#transferButton").click(function (event) {
+		var tranAmt = document.getElementById("tranAmt").value;
+		var printContent = document.getElementById("printContent").value;
+		var wdPrintContent = document.getElementById("wdPrintContent").value;
+		var inputAmtOrContent = document.getElementById("amtOrPrintErrorMessage");
+		// 정규 표현식 패턴 (영문 대문자의 한글, 최대 10자)
+		var pattern = /^[A-Z가-힣ㄱ-ㅎ\s]{1,24}$/;
+		
+		if (tranAmt == "" || isNaN(tranAmt)) {
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "올바른 입금액을 입력해주세요.";
+		} else if (!pattern.test(printContent) || !pattern.test(wdPrintContent)) {
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "통장 표시는 영문 대문자와 한글만 입력 가능합니다.";
+			
+		} else if (printContent.trim() == "" || wdPrintContent.trim() == "") {
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "통장 표시를 입력해주세요.";
+		} else {
+			// 값 가져오기
+			var formData = $("form[name=depositForm]").serialize();
+			var inputAmtOrContent = document.getElementById("amtOrPrintErrorMessage");
+			
+			// Ajax 요청 보내기
+			$.ajax({
+				url: "/requestDeposit",
+				type: "post",
+				data: formData,
+				success: function(response) {
+					if (response.resultCode == "0000") {
+						// Json 객체로 파싱
+						const jsonString = JSON.stringify(response["depositResult"]["res_list"]["0"]);
+						const jsonObject = JSON.parse(jsonString);
+						
+						$("#bankTranDate").val(jsonObject["bank_tran_date"]);
+						$("#bankName").val(jsonObject["bank_name"]);
+						$("#tranAmt").val(jsonObject["tran_amt"]);
+						$("#printContent").val(jsonObject["print_content"]);
+						$("#wdPrintContent").val(response["depositResult"]["wd_print_content"]);
+						
+						$("#depositForm").attr("method", "post");
+						$("#depositForm").attr("action", "/depositResult");
+						$("#depositForm").submit();
+					} else {
+						$("#ErrorMessage").show();
+						inputAmtOrContent.textContent = response.resultMessage;
+					}
+				},
+				error: function(xhr, status, error) {
+					console.error("요청이 실패했습니다.");
+					console.error(error);
+				}
+			})
+		}
+	});
+	
+	var numberInput = document.getElementById("tranAmt");
+	var printContent = document.getElementById("printContent");
+	var wdPrintContent = document.getElementById("wdPrintContent");
+	var inputAmtOrContent = document.getElementById("amtOrPrintErrorMessage");
+	var pattern = /^[A-Z가-힣ㄱ-ㅎ\s]{1,10}$/;
+	
+	numberInput.addEventListener("input", async (e) => {
+		
+		var inputValue = numberInput.value;
+		// 입력된 값이 숫자가 아닐경우 value값 변경
+		if(/[^0-9]/.test(inputValue)) {
+			e.target.value = '';
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "숫자만 입력해주세요.";
+		} else {
+			$("#ErrorMessage").hide();
+		}
+	})
+	
+	wdPrintContent.addEventListener("input", async (e) => {
+		
+		var wdPrintContentValue = wdPrintContent.value;
+		if (/[a-z]/.test(e.target.value)) {
+			e.target.value = e.target.value.toUpperCase();
+		} else if (!pattern.test(wdPrintContentValue)) {
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "통장 표시는 영문 대문자와 한글만 입력 가능합니다.";
+		} else {
+			$("#ErrorMessage").hide();
+		}
+	})
+	
+	printContent.addEventListener("input", async (e) => {
+		
+		var printContentValue = printContent.value;
+		if (/[a-z]/.test(e.target.value)) {
+			e.target.value = e.target.value.toUpperCase();
+		} else if (!pattern.test(printContentValue)) {
+			$("#ErrorMessage").show();
+			inputAmtOrContent.textContent = "통장 표시는 영문 대문자와 한글만 입력 가능합니다.";
+		} else {
+			$("#ErrorMessage").hide();
+		}
+	})
+});
+</script>
+</head>
+<body>
+	<div id="wrap">
+		<div id="skipNav">
+			<a href="#main">본문 바로가기</a>
+		</div>
+		<div th:replace="fragments/header :: header"></div>
+		<div class="main" id="main">
+			<div class="container">
+				<section class="section h-100">
+					<form id="depositForm" name="depositForm">
+						<input type="hidden" name="bankTranDate" id="bankTranDate" value="">
+						<input type="hidden" name="bankName" id="bankName" value="">
+						<div class="main-tit">
+							<h2>
+								입금 이체 <span>이용기관 →<span th:text="${session.userLoginId}" style="margin-left:6px;"></span>(<span th:text="${accountHolderName}" class="m-0"></span>)님 계좌로 이체</span>
+							</h2>
+							<div>
+								<a href="/account">
+									<button type="button" class="btn btn-primary">목록으로</button>
+								</a>
+							</div>
+						</div>
+						<div class="table-style">
+							<table>
+								<caption>입금 이체를 하기 위해 정보를 입력하는 표</caption>
+								<colgroup>
+									<col style="width: 150px;">
+									<col style="width: calc(( 100% - 300px)/2);">
+									<col style="width: 150px;">
+									<col style="width: calc(( 100% - 300px)/2);">
+								</colgroup>
+								<tbody>
+									<tr>
+										<th>은행명</th>
+										<td class="align-left">
+											<p th:text="${bankName}"></p>
+											<input type="hidden" name="accountHolderName" id="accountHolderName" th:value="${accountHolderName}">
+										</td>
+										<th>계좌번호</th>
+										<td class="align-left">
+											<p th:text="${accountNumMasked}"></p>
+											<input type="hidden" name="finUseNum" id="finUseNum" th:value="${finUseNum}">
+											<input type="hidden" name="accountNumMasked" id="accountNumMasked" th:value="${accountNumMasked}">
+										</td>
+									</tr>
+									<tr>
+										<th>입금액(원)</th>
+										<td colspan="3" class="align-left">
+											<input type="text" name="tranAmt" id="tranAmt" class="f-bold align-right" required="required" maxlength="10">
+										</td>
+									</tr>
+									<tr>
+										<th>내 통장 표시</th>
+										<td colspan="3" class="align-left">
+											<input type="text" name="printContent" id="printContent" class="w-100" required="required" maxlength="10">
+										</td>
+									</tr>
+									<tr>
+										<th>출금 통장 표시</th>
+										<td colspan="3" class="align-left">
+											<input type="text" name="wdPrintContent" id="wdPrintContent" class="w-100" required="required" maxlength="10">
+										</td>
+									</tr>
+								</tbody>
+							</table> 
+						</div>
+						<div class="btn-box">
+							<button type="button" id="transferButton" class="btn btn-lg btn-primary">이체</button>
+						</div>
+					</form>
+					<div style="display:none;" class="alert alert-red" id="ErrorMessage">
+						<p id="amtOrPrintErrorMessage"></p>
+					</div>
+					
+					<div style="display:none;" id="resultError">
+						<div class="alert alert-danger">
+							<p th:text="${resultMessage}" class="mb-1"></p>
+							<p>테스트</p>
+						</div>
+					</div>
+				</section>
+			</div>
+		</div>
+		<div th:replace="fragments/footer :: footer"></div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!--
+ * @author 김응경
+ * @date 2023. 7. 26.
+ * @description 계좌조회 화면
+-->
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>BeBig</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0, width=device-width, target-densitydpi=medium-dpi" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="stylesheet" type="text/css" href="css/common.css" />
+<script type="text/javascript" src="/js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="/js/html5shiv.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	fnGetAccountList();
+});
+
+//등록계좌 조회
+function fnGetAccountList(){
+	$.ajax({
+		type: "POST",
+		url: "/requestAccountList",
+		data: null,
+		success: function (msg) {
+			var resultList = "";
+			
+			if (msg.Code == "0000") {
+				$("#accountList > tr").remove();
+				
+				for(i in msg.Data){
+					var replaceProductName = (msg.Data[i].product_name == "" || msg.Data[i].product_name == null) ? "-" : msg.Data[i].product_name;
+					var replaceBalanceAmt = (msg.Data[i].balance_amt == "" || msg.Data[i].balance_amt == null) ? "0" : parseInt(msg.Data[i].balance_amt).toLocaleString();
+					var accountIssueDate = msg.Data[i].account_issue_date;
+					var replaceAccountIssueDate = (accountIssueDate == null || accountIssueDate == "00000000") ? "-" : accountIssueDate.substring(0,4) + "-" + accountIssueDate.substring(4,6) + "-" + accountIssueDate.substring(6,8);
+					var lastTranDate = msg.Data[i].last_tran_date;
+					var replaceLastTranDate = (lastTranDate == null || lastTranDate == "00000000") ? "-" : lastTranDate.substring(0,4) + "-" + lastTranDate.substring(4,6) + "-" + lastTranDate.substring(6,8);
+					
+					resultList += "<tr>";
+					resultList += "<td>";
+					resultList += "<form>";
+					resultList += "<input type='hidden' name='finUseNum' value='" + msg.Data[i].fintech_use_num + "'>";
+					resultList += "<input type='hidden' name='accountNumMasked' value='" + msg.Data[i].account_num_masked + "'>";
+					resultList += "<input type='hidden' name='bankName' value='" + msg.Data[i].bank_name + "'>";
+					resultList += "<input type='hidden' name='accountHolderName' value='" + msg.Data[i].account_holder_name + "'>";
+					resultList += "<input type='hidden' name='balanceAmt' value='" + replaceBalanceAmt + "'>";
+					resultList += "</form>";
+					resultList += msg.Data[i].bank_name;
+					resultList += "</td>";
+					resultList += "<td><p onclick='fnGoAccountHistory(this);' class='text-secondary' style='cursor: pointer;'><b>" + msg.Data[i].account_num_masked + "</b></p></td>";
+					resultList += "<td>" + fnChangeText(msg.Data[i].account_type) + "</td>";
+					resultList += "<td>" + replaceProductName + "</td>";
+					resultList += "<td><p class='text-orange' style='text-align: right;'><b>" + replaceBalanceAmt + "</b></p></td>";
+					resultList += "<td>" + replaceAccountIssueDate + "</td>";
+					resultList += "<td>" + replaceLastTranDate + "</td>";
+					resultList += "<td><button onclick='fnCancelAccount(this);' class='btn btn-primary'><span>해지</span></button></td>";
+					resultList += "<td><button onclick='fnGoDeposit(this);' class='btn btn-primary'><span>입금</span></button></td>";
+					resultList += "<td><button onclick='fnGoWithdraw(this);' class='btn btn-primary'><span>출금</span></button></td>";
+					resultList += "</tr>";
+				}
+				
+				$("#accountList").append(resultList);
+			} else {
+				alert(msg.Message);
+			}
+		},
+		error: function(xhr, status, error) {
+			console.error("오류:", error);
+			
+			alert("처리 중, 오류가 발생하였습니다. 담당자에게 문의하시기 바랍니다.");
+		}
+	});
+}
+
+function fnChangeText(code){
+	if (code == "1") {
+		return "수시입출금";
+	} else if(code == "2") {
+		return "예적금";
+	} else if(code == "6") {
+		return "수익증권";
+	} else {
+		return "종합계좌";
+	}
+}
+
+//거래내역 조회 화면으로 이동
+function fnGoAccountHistory(e){
+	var form = $(e).closest("td").closest("tr").find("form");
+	
+	form.attr("method", "post");
+	form.attr("action", "/accountHistory");
+	form.submit();
+}
+
+//계좌 해지
+function fnCancelAccount(e){
+	var formData = $(e).closest("td").closest("tr").find("form").serialize();
+	
+	if(confirm("정말 해지 하시겠습니까?")){
+		$.ajax({
+			type: "POST",
+			url: "/requestAccountCancel",
+			data: formData,
+			success: function (msg) {
+				console.log("서버응답:", msg.Code);
+				console.log("서버응답:", msg.Message);
+				
+				if (msg.Code == "0000") {
+					alert("정상적으로 해지 처리되었습니다.");
+					
+					fnGetAccountList();
+				} else {
+					alert(msg.Message);
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error("오류:", error);
+				
+				alert("처리 중, 오류가 발생하였습니다. 담당자에게 문의하시기 바랍니다.");
+			}
+		});
+	} else {
+		return false;
+	}
+}
+
+//입금이체 화면으로 이동
+function fnGoDeposit(e){
+	var form = $(e).closest("td").closest("tr").find("form");
+	
+	form.attr("method", "post");
+	form.attr("action", "/deposit");
+	form.submit();
+}
+
+//출금이체 화면으로 이동
+function fnGoWithdraw(e){
+	var form = $(e).closest("td").closest("tr").find("form");
+	
+	form.attr("method", "post");
+	form.attr("action", "/withdraw");
+	form.submit();
+}
+</script>
+</head>
+<body>
+	<div id="wrap">
+		<div id="skipNav">
+			<a href="#main">본문 바로가기</a>
+		</div>
+		<div th:replace="fragments/header :: header"></div>
+		<div class="main" id="main">
+			<div class="container">
+				<section class="section h-100">
+					<div class="main-tit">
+						<h2>계좌 조회</h2>
+						<div>
+							<form method="get" action="https://testapi.openbanking.or.kr/oauth/2.0/authorize">
+								<div class="input-group">
+									<input type="hidden" name="response_type" value="code" />
+									<input type="hidden" name="client_id" th:value="${clientId}" />
+									<input type="hidden" name="redirect_uri" th:value="${redirectUrl}" />
+									<input type="hidden" name="scope" value="login inquiry transfer" />
+									<input type="hidden" name="state" value="12345612312334567890123456256073" />
+									<input type="hidden" name="auth_type" value="0" />
+								</div>
+								<button type="submit" class="btn btn-primary">서비스 등록</button>
+							</form>
+						</div>
+					</div>
+					<div class="table-style scroll">
+						<div class="scroll-thead">
+							<table>
+								<caption>계좌조회 결과 제목을 모아놓은 표</caption>
+								<colgroup>
+									<col style="width: 120px;">
+									<col style="width: 134px;">
+									<col style="width: 120px;">
+									<col style="width: 130px;">
+									<col style="width: 120px;">
+									<col style="width: 140px;">
+									<col style="width: 115px;">
+									<col style="width: 110px;">
+									<col style="width: 85px;">
+									<col style="width: 94px;">
+								</colgroup>
+								<thead>
+									<th>은행명</th>
+									<th>계좌번호</th>
+									<th>계좌 종류</th>
+									<th>상품명</th>
+									<th>현재 잔액(원)</th>
+									<th>개설일자</th>
+									<th>최종거래일자</th>
+									<th>서비스해지</th>
+									<th>입금</th>
+									<th>출금</th>
+								</thead>
+							</table>
+						</div>
+						<div class="scroll-tbody">
+							<table>
+								<caption>계좌조회 결과 내용을 모아놓은 표</caption>
+								<colgroup>
+									<col style="width: 120px;">
+									<col style="width: 134px;">
+									<col style="width: 120px;">
+									<col style="width: 130px;">
+									<col style="width: 120px;">
+									<col style="width: 140px;">
+									<col style="width: 115px;">
+									<col style="width: 110px;">
+									<col style="width: 85px;">
+									<col style="width: 94px;">
+								</colgroup>
+								<tbody id="accountList">
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</section>
+			</div>
+		</div>
+		<div th:replace="fragments/footer :: footer"></div>
+	</div>
+</body>
+</html>

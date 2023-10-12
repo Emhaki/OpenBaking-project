@@ -1,0 +1,174 @@
+<!--
+ * @author 이명학
+ * @date 2023. 7. 26.
+ * @description 출금이체 화면
+-->
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>BeBig</title>
+
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0, width=device-width, target-densitydpi=medium-dpi" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="stylesheet" type="text/css" href="css/common.css" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	withdrawAmount()
+	
+	$("#withdrawButton").click(function () {
+		var formData = $("#withdrawForm").serialize();
+		var result;
+		
+		$.ajax({
+			type: "POST",
+			url: "/requestWithdraw",
+			data: formData,
+			success: function (msg) {
+				if (msg.Code == "0000") {
+					const finUseNum = JSON.stringify(msg.Data.fintech_use_num);
+					const bankName = JSON.stringify(msg.Data.bankName);
+					const accountNumMasked = JSON.stringify(msg.Data.accountNumMasked);
+					const bankTranDate = JSON.stringify(msg.Data.bank_tran_date);
+					const tranAmt = JSON.stringify(msg.Data.tranAmt);
+					const dpsPrintContent = JSON.stringify(msg.Data.dpsPrintContent);
+					const printContent = JSON.stringify(msg.Data.printContent);
+					
+					$("#finUseNum").val(msg.Data.fintech_use_num);
+					$("#bankName").val(msg.Data.bank_name);
+					$("#accountNumMasked").val(msg.Data.account_num_masked);
+					$("#bankTranDate").val(bankTranDate);
+					$("#tranAmt").val(msg.Data.tran_amt);
+					$("#dpsPrintContent").val(msg.Data.dps_print_content);
+					$("#printContent").val(msg.Data.print_content);
+					
+					$("#withdrawForm").attr("method", "post");
+					$("#withdrawForm").attr("action", "/withdrawResult");
+					$("#withdrawForm").submit();
+				} else {
+					var inputMessage = document.getElementById("withdrawErrorMessage");
+					$("#errorMessage").show();
+					inputMessage.textContent = msg.Message;
+				}
+			},
+			error: function (error) {
+				alert("처리 중, 오류가 발생하였습니다. 담당자에게 문의하시기 바랍니다.");
+			}
+		})
+	})
+});
+
+function withdrawAmount() {
+	$("#withdrawAmount").on("focus", function() {
+		var x = $(this).val();
+		x = removeCommas(x);
+		$(this).val(x);
+	}).on("focusout", function() {
+		var x = $(this).val();
+		x = x.replace(/[^0-9]/g, "");
+		x = addCommas(x);
+		$(this).val(x);
+	}).on("keyup", function() {
+		var x = $(this).val();
+		x = x.replace(/[^0-9]/g, "");
+		$(this).val(x);
+	});
+	function addCommas(x) {
+		return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	}
+}
+
+</script>
+</head>
+<body>
+	<div id="wrap">
+		<div id="skipNav">
+			<a href="#main">본문 바로가기</a>
+		</div>
+		<div th:replace="fragments/header :: header"></div>
+		<div class="main" id="main">
+			<div class="container">
+				<section class="section h-100">
+					<form id="withdrawForm">
+					<div class="main-tit">
+						<h2>
+							출금 이체
+							<span><span th:text="${session.userLoginId}"></span>(<span id="account_holder_name" th:text="${accountHolderName}"></span>)님 → 이용기관 계좌로 이체</span>
+						</h2>
+						<button type="button" class="btn btn-primary">
+							<a href="/account" class="fw-bold" style="color: #FFFFFF; text-decoration: none;"> 목록으로 </a>
+						</button>
+					</div>
+						<div class="table-style">
+								<table>
+									<caption>출금 이체를 하기 위해 정보를 입력하는 표</caption>
+									<colgroup>
+										<col style="width: 150px;">
+										<col style="width: calc(( 100% - 300px)/2);">
+										<col style="width: 150px;">
+										<col style="width: calc(( 100% - 300px)/2);">
+									</colgroup>
+									
+									<tbody>
+										<tr>
+											<th>은행명</th>
+											<td class="align-left">
+											<p th:text="${bankName != null ? bankName : ' '}"></p>
+											<input type="hidden" id="accountHolderName" name="accountHolderName" th:value="${accountHolderName}">
+											<input type="hidden" id="finUseNum" name="finUseNum" th:value="${finUseNum}">
+											<input type="hidden" id="bankName" name="bankName" th:value="${bankName}">
+											<input type="hidden" id="bankTranDate" name="bankTranDate">
+											<input type="hidden" id="tranAmt" name="tranAmt">
+											<input type="hidden" id="dpsPrintContent" name="dpsPrintContent">
+											<input type="hidden" id="printContent" name="printContent">
+											
+											</td>
+											<th>계좌번호</th>
+											<td class="align-left">
+											<p th:text="${accountNumMasked}"></p>
+											<input type="hidden" id="accountNumMasked" name="accountNumMasked">
+											
+											</td>
+										</tr>
+										<tr>
+											<th>출금액(원)</th>
+											<td colspan="3" class="align-left">
+											<input type="text" class="f-bold align-right" id="withdrawAmount" name="withdrawAmount" onKeyup="this.value=this.value.replace(/[^0-9]/g,'');" maxlength="12" required></td>
+											<input type="hidden" id="withdrawAmount" th:value="${withdrawAmount}">
+										</tr>
+										<tr>
+											<th>내 통장 표시</th>
+											<td colspan="3" class="align-left">
+											<input type="text" class="w-100" name="printContent" pattern="[ㄱ-ㅎ가-힣A-Zㅏ-ㅣ]{1,20}" maxlength="20" required title="영문 대문자 및 한글 최대 20자리까지 입력 가능합니다."></td>
+											<input type="hidden" id="printContent" name="printContent" th:value="${printContent}">
+										</tr>
+											<tr>
+												<th>입금 통장 표시</th>
+												<td colspan="3" class="align-left"><input type="text" class="w-100" name="depositPrintContent" pattern="[ㄱ-ㅎ가-힣A-Zㅏ-ㅣ]{1,20}" maxlength="20" required title="영문 대문자 및 한글 최대 20자리까지 입력 가능합니다."></td>
+												<input type="hidden" id="depositPrintContent" th:value="${depositPrintContent}">
+											</tr>
+									</tbody>
+								</table>
+							</div>
+							<div class="btn-box" id="btn-box">
+								<button type="button" id="withdrawButton" class="btn btn-lg btn-primary">이체</button>
+							</div>
+							<div style="display:none;" class="alert alert-red" id="errorMessage">
+								<p id="withdrawErrorMessage"></p>
+							</div>
+					</form>
+						
+				</div>
+			</section>
+			</div>
+		</div>
+		<footer class="footer">
+			<div class="container">
+				<p>©2023 Company All Rights Reserved.</p>
+			</div>
+		</footer>
+	</div>
+</body>
+</html>
